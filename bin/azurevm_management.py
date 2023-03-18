@@ -3,6 +3,7 @@ from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 
+
 # Get Azure CLI credentials
 credential = AzureCliCredential()
 
@@ -31,8 +32,8 @@ def create_resource_group():
 
 # Define function to create a virtual network
 def create_vnet():
-    network_client = NetworkManagementClient(credential, subscription_id)
-    network_client.virtual_networks.begin_create_or_update(
+    network_client_vnet = NetworkManagementClient(credential, subscription_id)
+    virtual_network = network_client_vnet.virtual_networks.begin_create_or_update(
         resource_group_name,
         vnet_name,
         {
@@ -40,30 +41,38 @@ def create_vnet():
             "address_space": {"address_prefixes": ["192.168.0.0/16"]},
         },
     ).result()
+    print(virtual_network.name + " created.")
+    return virtual_network
 
 # Define function to create a subnet
 def create_subnet():
-    network_client = NetworkManagementClient(credential, subscription_id)
-    network_client.subnets.begin_create_or_update(
+    network_client_subnet = NetworkManagementClient(credential, subscription_id)
+    subnet = network_client_subnet.subnets.begin_create_or_update(
         resource_group_name,
         vnet_name,
         subnet_name,
-        {"address_prefix": "192.168.0.0/24"},
+        {"address_prefix": "192.168.1.0/24"},
     ).result()
+    print(subnet.name + " created.")
+    print(subnet.id)
+    return subnet
 
 # Define function to create a public IP address
 def create_public_ip():
-    network_client = NetworkManagementClient(credential, subscription_id)
-    network_client.public_ip_addresses.begin_create_or_update(
+    network_client_public_ip = NetworkManagementClient(credential, subscription_id)
+    public_ip = network_client_public_ip.public_ip_addresses.begin_create_or_update(
         resource_group_name,
         public_ip_name,
         {"location": location, "sku": {"name": "Basic"}},
     ).result()
+    print(public_ip.name + " created.")
+    return public_ip
+
 
 # Define function to create a network interface
 def create_nic():
-    network_client = NetworkManagementClient(credential, subscription_id)
-    network_client.network_interfaces.begin_create_or_update(
+    network_client_nic = NetworkManagementClient(credential, subscription_id)
+    nic = network_client_nic.network_interfaces.begin_create_or_update(
         resource_group_name,
         nic_name,
         {
@@ -71,12 +80,15 @@ def create_nic():
             "ip_configurations": [
                 {
                     "name": "ipconfig1",
-                    "subnet": {"id": create_subnet().id},
-                    "public_ip_address": {"id": create_public_ip().id},
+                    "subnet": {"id": subnet.id},
+                    "public_ip_address": {"id": public_ip.id},
                 }
             ],
         },
     ).result()
+    print(nic.name + " created.")
+    return nic
+
 
 # Define function to create a virtual machine
 def create_vm():
@@ -100,14 +112,16 @@ def create_vm():
                 "admin_username": admin_username,
                 "admin_password": admin_password,
             },
-            "network_profile": {"network_interfaces": [{"id": create_nic().id}]},
+            "network_profile": {"network_interfaces": [{"id": nic.id}]},
         },
     )
 
 if __name__ == "__main__":
     create_resource_group()
     create_vnet()
-#    create_subnet(resource_group_name, vnet_name, subnet_name, location, address_prefix)
-#    create_public_ip(resource_group_name, public_ip_name, location)
-#    create_nic(resource_group_name, nic_name, location, subnet_id, public_ip_id)
+    create_subnet()
+    create_public_ip()
+    create_nic()
     create_vm()
+
+
